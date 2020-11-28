@@ -2,7 +2,6 @@ module Main where
 import Control.Monad
 import Numeric
 import System.Environment
-import Data.Char (digitToInt)
 import Text.ParserCombinators.Parsec hiding (spaces)
 
 symbol :: Parser Char
@@ -21,9 +20,8 @@ spaces = skipMany1 space
 
 data LispVal = Atom String
              | List [LispVal]
-             | DottedList [LispVal] | LispVal
+             | DottedList [LispVal] LispVal
              | Number Integer
-             | Float Float
              | String String
              | Bool Bool
              deriving Show
@@ -37,6 +35,21 @@ parseString = do char '"'
 parseNumber :: Parser LispVal
 parseNumber = do digits <- many1 digit
                  return $ (Number . read) digits
+
+parseList :: Parser LispVal
+parseList = liftM List $ sepBy parseExpr spaces
+
+parseDottedList :: Parser LispVal
+parseDottedList = do
+                    head <- endBy parseExpr spaces
+                    tail <- char '.' >> spaces >> parseExpr
+                    return $ DottedList head tail
+
+parseQuoted :: Parser LispVal
+parseQuoted = do
+                char '\''
+                x <- parseExpr
+                return $ List [Atom "quote", x]
 
 -- <|> is the choice operator
 -- Basically tries the first parser, then second if first fails, etc.
@@ -54,6 +67,11 @@ parseExpr :: Parser LispVal
 parseExpr = parseAtom
         <|> parseString
         <|> parseNumber
+        <|> parseQuoted
+        <|> do char '('
+               x <- try parseList <|> parseDottedList
+               char ')'
+               return x
 
 main :: IO ()
 main = do args <- getArgs
