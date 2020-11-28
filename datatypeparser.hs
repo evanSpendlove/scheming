@@ -1,11 +1,9 @@
 module Main where
 import Control.Monad
+import Numeric
 import System.Environment
+import Data.Char (digitToInt)
 import Text.ParserCombinators.Parsec hiding (spaces)
-
-main :: IO ()
-main = do args <- getArgs
-          putStrLn (readExpr (args !! 0))
 
 symbol :: Parser Char
 symbol = oneOf "!$%&|*+ -/: <=? >@^_~#"
@@ -16,7 +14,7 @@ symbol = oneOf "!$%&|*+ -/: <=? >@^_~#"
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
     Left err -> "No match: " ++ show err
-    Right val -> "Found value " ++ show val
+    Right val -> "Found value: " ++ show val
 
 spaces :: Parser ()
 spaces = skipMany1 space
@@ -36,18 +34,9 @@ parseString = do char '"'
                  char '"'
                  return $ String x
 
-parseFloat :: Parser LispVal
-parseFloat = do
-                x <- many1 digit
-                char '.'
-                y <- many1 digit
-                let atom = (x ++ "." ++ y)
-                return $ Float $ read atom
-
 parseNumber :: Parser LispVal
-parseNumber = do
-                x <- many1 digit
-                return $ Number $ read x 
+parseNumber = do digits <- many1 digit
+                 return $ (Number . read) digits
 
 -- <|> is the choice operator
 -- Basically tries the first parser, then second if first fails, etc.
@@ -64,5 +53,8 @@ parseAtom = do first <- letter <|> symbol
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
         <|> parseString
-        <|> parseFloat
         <|> parseNumber
+
+main :: IO ()
+main = do args <- getArgs
+          putStrLn (readExpr (args !! 0))
